@@ -97,37 +97,37 @@ WSGI_APPLICATION = 'task_project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-#         'NAME': os.environ.get("DATABASES_NAME", ""),
-#         'USER': os.environ.get("DATABASES_USER", ""),
-#         'PASSWORD': os.environ.get("DATABASES_PASSWORD", ""),
-#         'HOST': os.environ.get("DATABASES_HOST", ""),
-#         'PORT': os.environ.get("DATABASES_PORT", ""),
-#         'CONN_MAX_AGE': 500,
-#         'OPTIONS': {
-#             'connect_timeout': 10
-#         },
-#     }
-# }
-
-DEBUG = os.getenv('DEBUG') == 'True'
-SECRET_KEY = os.getenv('SECRET_KEY', 'your_default_secret_key')
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': os.getenv('DATABASE_NAME', ''),
-        'USER': os.getenv('DATABASE_USER', ''),
-        'PASSWORD': os.getenv('DATABASE_PASSWORD', ''),
-        'HOST': os.getenv('DATABASE_HOST', ''),
-        'PORT': os.getenv('DATABASE_PORT', ''),
+        'NAME': os.environ.get("DATABASES_NAME", ""),
+        'USER': os.environ.get("DATABASES_USER", ""),
+        'PASSWORD': os.environ.get("DATABASES_PASSWORD", ""),
+        'HOST': os.environ.get("DATABASES_HOST", ""),
+        'PORT': os.environ.get("DATABASES_PORT", ""),
         'CONN_MAX_AGE': 500,
         'OPTIONS': {
-            'connect_timeout': 10,
+            'connect_timeout': 10
         },
     }
 }
+
+# DEBUG = os.getenv('DEBUG') == 'True'
+# SECRET_KEY = os.getenv('SECRET_KEY', 'your_default_secret_key')
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql_psycopg2',
+#         'NAME': os.getenv('DATABASE_NAME', ''),
+#         'USER': os.getenv('DATABASE_USER', ''),
+#         'PASSWORD': os.getenv('DATABASE_PASSWORD', ''),
+#         'HOST': os.getenv('DATABASE_HOST', ''),
+#         'PORT': os.getenv('DATABASE_PORT', ''),
+#         'CONN_MAX_AGE': 500,
+#         'OPTIONS': {
+#             'connect_timeout': 10,
+#         },
+#     }
+# }
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
 
