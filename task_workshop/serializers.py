@@ -3,13 +3,8 @@ from rest_framework import serializers
 from task_workshop.models import SubTask, Task
 from django.contrib.auth.models import User
 from collections import OrderedDict
+import task_workshop.util as util
 
-tz_bangkok = timezone.get_current_timezone()
-    
-def localize_time(dt):
-    if dt:
-        return dt.astimezone(tz_bangkok).strftime('%Y-%m-%d %H:%M:%S')
-    return None
 
 class SubTaskSerializer(serializers.ModelSerializer):
     parent_task = serializers.PrimaryKeyRelatedField(queryset=Task.objects.prefetch_related('subtask_task'),required=False)
@@ -30,7 +25,6 @@ class SubTaskSerializer(serializers.ModelSerializer):
             'created_by': user,
             'updated_by': user,
             'created_at': timezone.now(),
-            'updated_at': timezone.now(),
         })
         
         if task_parentid is not None:
@@ -42,7 +36,6 @@ class SubTaskSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         validated_data.update({
             'updated_by': user,
-            'updated_at': timezone.now(),
         })
         return super().update(instance, validated_data)
     
@@ -53,22 +46,22 @@ class SubTaskSerializer(serializers.ModelSerializer):
             'title': instance.title,
             'status': instance.get_status_display(),
             'assignee': assignee_name,
-            'updated': localize_time(instance.updated_at),
+            'updated': util.localize_time(instance.updated_at),
             'task' : instance.parent_task.title
         }
         return resentation
 
 
-    
-
 class TaskSerializer(serializers.ModelSerializer):
     subtasks = SubTaskSerializer(many=True, required=False)
-    assignee = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
+    assignee = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), 
+                                                  allow_null=True, 
+                                                  required=False,
+                                                  error_messages={'does_not_exist': 'User not found in systems',})
     
     class Meta:
         model = Task
         fields = ['id','title','status','assignee','updated_by','subtasks']
-    
     
     def create(self, validated_data):
         subtasks_data = validated_data.pop('subtasks', [])
@@ -80,7 +73,6 @@ class TaskSerializer(serializers.ModelSerializer):
             'created_by': user,
             'updated_by': user,
             'created_at': timezone.now(),
-            'updated_at': timezone.now(),
         })
         # print(validated_data)
         task_create = Task.objects.create( **validated_data)
@@ -99,13 +91,13 @@ class TaskSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         new_status = validated_data.get('status', None)
         user = self.context['request'].user
+        
         validated_data.update({
             'updated_by': user,
-            'updated_at': timezone.now(),
         })
         
         if new_status is not None and new_status != instance.status:
-            print(new_status)
+            # print(new_status)
             subtask = instance.subtask_task.all()
             self.update_task(subtask, new_status,user)
         super().update(instance, validated_data)
@@ -127,8 +119,9 @@ class TaskSerializer(serializers.ModelSerializer):
             'id': instance.id,
             'title': instance.title,
             'status': instance.get_status_display(),
-            'updated': localize_time(instance.updated_at),
+            'updated':  util.localize_time(instance.updated_at),
             'assignee': assignee_name,
             'subtask' : SubTaskSerializer(subtask_query,many=True).data
         }
         return resentation
+
