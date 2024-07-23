@@ -4,7 +4,22 @@ from task_workshop.models import SubTask, Task
 from django.contrib.auth.models import User
 
 
-class SubTaskSerializer(serializers.ModelSerializer):
+class UserUpdatedSerializer(serializers.ModelSerializer):
+    created_by = serializers.PrimaryKeyRelatedField(queryset=User.objects, required=False)
+    updated_by = serializers.PrimaryKeyRelatedField(queryset=User.objects, required=False)
+
+    def update(self, instance, validated_data):
+        validated_data.update({"updated_by": self._context["request"].user})
+        return super().update(instance, validated_data)
+    
+    def create(self, validated_data):
+        validated_data.update({
+            "created_by": self._context["request"].user,
+            "updated_by": self._context["request"].user,
+        })
+        return super().create(validated_data)
+
+class SubTaskSerializer(UserUpdatedSerializer,serializers.ModelSerializer):
     parent_task = serializers.PrimaryKeyRelatedField(queryset=Task.objects.all(),required=False)
     assignee = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
     
@@ -46,7 +61,7 @@ class SubTaskSerializer(serializers.ModelSerializer):
         }
         return resentation
 
-class TaskSerializer(serializers.ModelSerializer):
+class TaskSerializer(UserUpdatedSerializer,serializers.ModelSerializer):
     subtasks = SubTaskSerializer(many=True, required=False)
     assignee = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), allow_null=True, required=False)
     
@@ -56,29 +71,40 @@ class TaskSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         subtasks_data = validated_data.pop('subtasks', [])
-        user = self.context['request'].user
         assignee = validated_data.pop('assignee', [])
         if assignee :
             validated_data.update({'assignee': assignee})
-        validated_data.update({
-            'created_by': user,
-            'updated_by': user,
-            'created_at': timezone.now(),
-            'updated_at': timezone.now(),
-        })
-        # print(validated_data)
-        task_create = Task.objects.create( **validated_data)
-        # create subtask
-        if subtasks_data :
-            for subtask_l in subtasks_data:
-                subtask_l.update({
-                    'parent_task': task_create,
-                    'created_by': user,
-                    'updated_by': user,
-                    'created_at': timezone.now()
-                    })
-                SubTask.objects.create( **subtask_l)
-        return task_create
+        instance =  super().create(validated_data)
+        
+        for subtask in subtasks_data :
+            subtask.update({
+                'parent_task': instance
+            })
+            SubTaskSerializer(context=self.context).create(validated_data=subtask)
+        return instance
+
+    
+    # def create(self, validated_data):
+    #     subtasks_data = validated_data.pop('subtasks', [])
+    #     assignee = validated_data.pop('assignee', [])
+    #     if assignee :
+    #         validated_data.update({'assignee': assignee})
+        
+    #     # print(validated_data)
+    #     task_create = TaskSerializer(data=validated_data)
+    #     task_create.is_valid(raise_exception=True)
+    #     task_create.save()
+    #     return task_create
+    #     # Task.objects.create( **validated_data)
+    #     # # create subtask
+    #     # if subtasks_data :
+    #     #     for subtask_l in subtasks_data:
+    #     #         subtask_l.update({
+    #     #             'parent_task': task_create,
+    #     #             'created_at': timezone.now()
+    #     #             })
+    #     #         SubTask.objects.create( **subtask_l)
+    #     # return task_create
 
     def update(self, instance, validated_data):
         #
