@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from task_workshop.models import SubTask, Task
 from django.contrib.auth.models import User
+from collections import OrderedDict
 
 
 class UserUpdatedSerializer(serializers.ModelSerializer):
@@ -48,7 +49,11 @@ class SubTaskSerializer(UserUpdatedSerializer,serializers.ModelSerializer):
         return subtask_create
         
     def update(self, instance, validated_data):
-            
+        user = self.context['request'].user
+        validated_data.update({
+            'updated_by': user,
+            'updated_at': timezone.now(),
+        })
         return super().update(instance, validated_data)
     
     def to_representation(self, instance):
@@ -57,7 +62,8 @@ class SubTaskSerializer(UserUpdatedSerializer,serializers.ModelSerializer):
             'id': instance.id,
             'title': instance.title,
             'status': instance.get_status_display(),
-            'assignee': assignee_name
+            'assignee': assignee_name,
+            'task' : instance.parent_task.title
         }
         return resentation
 
@@ -107,16 +113,38 @@ class TaskSerializer(UserUpdatedSerializer,serializers.ModelSerializer):
     #     # return task_create
 
     def update(self, instance, validated_data):
-        #
-        return super().update(instance, validated_data)
+        new_status = validated_data.get('status', None)
+        user = self.context['request'].user
+        validated_data.update({
+            'updated_by': user,
+            'updated_at': timezone.now(),
+        })
+        
+        if new_status is not None and new_status != instance.status:
+            print(new_status)
+            # หา subtask 
+            subtask = instance.subtask_task.all()
+            for sub in subtask:
+                # subtask น้อยกว่า Task
+                if sub.status < new_status:
+                    print('Change status')
+                    print(sub.status,sub.title)
+                    sub.status = new_status
+                    sub.updated_by = user
+                    sub.updated_at = timezone.now()
+                    sub.save()
+        super().update(instance, validated_data)
+        return instance
     
     def to_representation(self, instance):
         assignee_name = instance.assignee.username if instance.assignee != None else None
+        subtask_query = instance.subtask_task.select_related('parent_task').all()
+        # representation = OrderedDict()
         resentation = {
             'id': instance.id,
             'title': instance.title,
             'status': instance.get_status_display(),
             'assignee': assignee_name,
-            'subtask' : SubTaskSerializer(instance.subtask_task.all(),many=True).data
+            'subtask' : SubTaskSerializer(subtask_query,many=True).data
         }
         return resentation
